@@ -484,6 +484,7 @@ class accUpdInterface:
         self._ip = ip
         self._port = port
         self._last_time_requested = datetime.datetime.now()
+        self._last_connection = datetime.datetime.now()
 
         self.child_pipe, self.parent_pipe = Pipe()
         self.data_queue = Queue()
@@ -514,9 +515,9 @@ class accUpdInterface:
 
             now = datetime.datetime.now()
             # if connection was lost or not established wait 2s before asking again
-            if (not self.connected and (now - last_connection).total_seconds() > 2):
+            if (not self.connected and (now - self._last_connection).total_seconds() > 2):
                 self.connect()
-                last_connection = datetime.datetime.now()
+                self._last_connection = datetime.datetime.now()
 
             else:
                 self.update()
