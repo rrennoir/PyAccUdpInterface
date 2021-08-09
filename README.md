@@ -1,6 +1,6 @@
-# PyAccSharedMemory
+# PyAccUdpInterface
 
-ACC UDP interface listner written in python 😀.
+ACC UDP interface listener written in python 😀.
 
 ## Usage
 
@@ -30,22 +30,22 @@ Basic code example.
 
 ## Data structure
 
-Dictionary containing 3 dictionaries, each one of them contains all the information available through the shared memory and have the same as the official documentation.
+Kunos don't give any documentation on their udp interface except the code example they give and I'm too lazy to write one myself 😅
 
 ```py
 {
     "connection": {
-        "id": -1,
-        "connected": False
+        "id": ...,
+        "connected": ...
     },
     "entries": {},
     "session": {
         "track": "None",
-        "session_type": SessionType.NONE.name,
-        "session_time": datetime.datetime.fromtimestamp(0),
-        "session_end_time": datetime.datetime.fromtimestamp(0),
-        "air_temp": 0,
-        "track_temp": 0
+        "session_type": ...,
+        "session_time": ...,
+        "session_end_time": ...,
+        "air_temp": ...,
+        "track_temp": ...
     },
 }
 ```
