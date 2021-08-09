@@ -7,7 +7,110 @@ from multiprocessing import Process, Queue, Pipe
 from enum import Enum
 from copy import deepcopy
 
-from Cursor import Cursor, ByteWriter
+import struct
+import sys
+
+
+class Cursor:
+
+    def __init__(self, byte: bytes):
+        self._cursor = 0
+        self._byte_array = byte
+
+    def read_u8(self) -> int:
+
+        data = self._byte_array[self._cursor: self._cursor + 1]
+        self._cursor += 1
+
+        return int.from_bytes(data, byteorder=sys.byteorder, signed=False)
+
+    def read_u16(self) -> int:
+
+        data = self._byte_array[self._cursor: self._cursor + 2]
+        self._cursor += 2
+
+        return int.from_bytes(data, byteorder=sys.byteorder, signed=False)
+
+    def read_u32(self) -> int:
+
+        data = self._byte_array[self._cursor: self._cursor + 4]
+        self._cursor += 4
+
+        return int.from_bytes(data, byteorder=sys.byteorder, signed=False)
+
+    def read_i8(self) -> int:
+
+        data = self._byte_array[self._cursor: self._cursor + 1]
+        self._cursor += 1
+
+        return int.from_bytes(data, byteorder=sys.byteorder, signed=True)
+
+    def read_i16(self) -> int:
+
+        data = self._byte_array[self._cursor: self._cursor + 2]
+        self._cursor += 2
+
+        return int.from_bytes(data, byteorder=sys.byteorder, signed=True)
+
+    def read_i32(self) -> int:
+
+        data = self._byte_array[self._cursor: self._cursor + 4]
+        self._cursor += 4
+
+        return int.from_bytes(data, byteorder=sys.byteorder, signed=True)
+
+    def read_f32(self) -> float:
+
+        data = self._byte_array[self._cursor: self._cursor + 4]
+        self._cursor += 4
+
+        return struct.unpack("<f", data)[0]
+
+    def read_string(self) -> str:
+
+        lenght = self.read_u16()
+
+        string = self._byte_array[self._cursor: self._cursor + lenght]
+        self._cursor += lenght
+
+        # ACC doesn't support unicode emoji (and maybe orther
+        # unicode charactere)
+        # so if an emoji is in a name it put garbage bytes...
+        # 6 bytes of trash idk why, so I ingore them
+        return string.decode("utf-8", errors="ignore")
+
+
+class ByteWriter:
+
+    def __init__(self) -> None:
+        self.bytes_array = b""
+
+    def write_u8(self, data: int) -> None:
+        self.bytes_array += (data).to_bytes(1, sys.byteorder, signed=False)
+
+    def write_u16(self, data: int) -> None:
+        self.bytes_array += (data).to_bytes(2, sys.byteorder, signed=False)
+
+    def write_u32(self, data: int) -> None:
+        self.bytes_array += (data).to_bytes(4, sys.byteorder, signed=False)
+
+    def write_i16(self, data: int) -> None:
+        self.bytes_array += (data).to_bytes(2, sys.byteorder, signed=True)
+
+    def write_i32(self, data: int) -> None:
+        self.bytes_array += (data).to_bytes(4, sys.byteorder, signed=True)
+
+    def write_f32(self, data: float) -> None:
+        self.bytes_array += struct.pack("<f", data)[0]
+
+    def write_str(self, data: str) -> None:
+        # ACC does support unicode emoji but I do, hehe 😀
+        byte_data = data.encode("utf-8")
+        self.write_u16(len(byte_data))
+        self.bytes_array += byte_data
+
+    def get_bytes(self) -> bytes:
+        return self.bytes_array
 
 
 class Nationality(Enum):
@@ -461,7 +564,6 @@ class accUpdInterface:
         self._speed = instance_info["speed"]
         self._cmd_psw = instance_info["cmd_password"]
 
-        # TODO rename to udp_data
         self._udp_data = {
             "connection": {
                 "id": -1,
@@ -488,8 +590,8 @@ class accUpdInterface:
 
         self.child_pipe, self.parent_pipe = Pipe()
         self.data_queue = Queue()
-        self.udp_interface_listener = Process(target=self.listen_udp_interface, args=(self.child_pipe, self.data_queue))
-
+        self.udp_interface_listener = Process(
+            target=self.listen_udp_interface, args=(self.child_pipe, self.data_queue))
 
     @property
     def udp_data(self):
@@ -497,11 +599,10 @@ class accUpdInterface:
         if self.parent_pipe.recv() == "DATA_OK":
             try:
                 return self.data_queue.get_nowait()
-            
+
             except(queue.Empty):
                 # idk return None
                 return None
-
 
     def listen_udp_interface(self, child_pipe: Connection, data_queue: Queue):
 
@@ -521,7 +622,7 @@ class accUpdInterface:
 
             else:
                 self.update()
-            
+
             if message == "DATA_REQUEST":
                 data_queue.put(deepcopy(self._udp_data))
                 child_pipe.send("DATA_OK")
@@ -533,7 +634,7 @@ class accUpdInterface:
         print("[ASM_Reader]: Process Terminated.")
 
     def start(self):
-        
+
         print("[pyUIL] Listening to the UDP interface...")
         self.udp_interface_listener.start()
 
@@ -542,7 +643,7 @@ class accUpdInterface:
         print("[pyUIL]: Sending stopping command to process...")
         self.parent_pipe.send("STOP_PROCESS")
 
-        print("[pyUIL]: Waiting for process to finish...")   
+        print("[pyUIL]: Waiting for process to finish...")
         if (self.parent_pipe.recv() == "PROCESS_TERMINATED"):
             # Need to empty the queue before joining process (qsize() isn't 100% accurate)
             while self.data_queue.qsize() != 0:
@@ -551,7 +652,8 @@ class accUpdInterface:
                 except queue.Empty:
                     pass
         else:
-            print("[pyUIL]: Received unexpected message, program might be deadlock now.")
+            print(
+                "[pyUIL]: Received unexpected message, program might be deadlock now.")
 
         self.udp_interface_listener.join()
 
